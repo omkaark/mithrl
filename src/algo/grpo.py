@@ -1,14 +1,17 @@
 import torch
 
+from .base import Algorithm
 from ..utils.config import MithrlConfig
 
 
-class GRPO:
-    @staticmethod
+class GRPO(Algorithm):
+    def __init__(self, config: MithrlConfig, **kwargs) -> None:
+        super().__init__(config=config, **kwargs)
+
     def compute_advantages(
+        self,
         rewards: torch.Tensor,
         metadatas: list[dict],
-        config: MithrlConfig
     ) -> torch.Tensor:
         try:
             group_ids = torch.tensor([md["group_id"] for md in metadatas], device=rewards.device)
@@ -20,23 +23,25 @@ class GRPO:
         for gid in group_ids.unique():
             m = group_ids == gid
             g = rewards[m]
-            advantages[m] = (g - g.mean()) / (g.std(unbiased=False) + config.algo.group_adv_eps)
+            advantages[m] = (g - g.mean()) / (
+                g.std(unbiased=False) + self.config.algo.kwargs["group_adv_eps"]
+            )
 
         return advantages
 
-    @staticmethod
     def loss(
+        self,
         current_logprobs: torch.Tensor,
         old_logprobs: torch.Tensor,
         ref_logprobs: torch.Tensor,
         masks: torch.Tensor,
         advantages: torch.Tensor,
-        config: MithrlConfig,
     ) -> tuple[torch.Tensor, dict[str, float]]:
         mask_denom = masks.sum(dim=1).clamp_min(1.0)
 
         importance = torch.exp(current_logprobs - old_logprobs)
-        clipped = importance.clamp(1 - config.algo.clip_eps, 1 + config.algo.clip_eps)
+        clip_eps = self.config.algo.kwargs["clip_eps"]
+        clipped = importance.clamp(1 - clip_eps, 1 + clip_eps)
 
         adv = advantages[:, None]
         policy_loss = -torch.min(importance * adv, clipped * adv)
@@ -45,7 +50,7 @@ class GRPO:
 
         log_ratio = current_logprobs - ref_logprobs
         kl = (torch.exp(log_ratio) - log_ratio - 1) * masks
-        kl_loss = config.algo.kl_coef * (kl.sum(dim=1) / mask_denom).mean()
+        kl_loss = self.config.algo.kwargs["kl_coef"] * (kl.sum(dim=1) / mask_denom).mean()
 
         combined = policy_loss + kl_loss
         return combined, {

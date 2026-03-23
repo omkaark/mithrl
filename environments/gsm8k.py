@@ -174,15 +174,16 @@ class GSM8KEnvironment(Environment):
 
 class GSM8KEnvironmentFactory(EnvironmentFactory):
     def __init__(self, config: MithrlConfig) -> None:
-        if config.rollout.n_rollouts % config.algo.n_groups != 0:
+        if config.rollout.n_rollouts % config.algo.kwargs["n_groups"] != 0:
             raise ValueError(
-                "rollout.n_rollouts must be divisible by algo.n_groups for grouped rollouts."
+                "rollout.n_rollouts must be divisible by algo.kwargs.n_groups for grouped rollouts."
             )
 
         self._config = config
-        self._rollouts_per_group = config.rollout.n_rollouts // config.algo.n_groups
+        n_groups = config.algo.kwargs["n_groups"]
+        self._rollouts_per_group = config.rollout.n_rollouts // n_groups
+        examples = _STREAM_STATE.next_examples(n_groups)
         self._group_specs: dict[int, tuple[int, str, str]] = {}
-        examples = _STREAM_STATE.next_examples(config.algo.n_groups)
 
         for group_id, example in enumerate(examples):
             seed = _STREAM_STATE.next_seed()

@@ -9,8 +9,8 @@ import wandb
 from peft import LoraConfig, PeftModel, get_peft_model
 from transformers import AutoModelForCausalLM
 
-from ..algo.grpo import GRPO
 from ..utils import vllm
+from ..utils.algo_loader import load_algorithm
 from ..utils.config import MithrlConfig
 from ..utils.torch_utils import move_opt_to_device, pad_2d
 from .rollout import RolloutSample, run_rollouts
@@ -21,6 +21,7 @@ def main():
     parser.add_argument("--config", help="Path to YAML config")
     args = parser.parse_args()
     config = MithrlConfig.from_yaml(args.config)
+    algorithm = load_algorithm(config)
 
     wandb.init(
         mode="online" if config.train.use_wandb else "disabled",
@@ -144,11 +145,11 @@ def main():
         ref_logprobs = pad_2d(ref_logprobs, pad_value=0.0, dtype=torch.float32, device="cuda")
         masks = pad_2d(masks, pad_value=0.0, dtype=torch.float32, device="cuda")
         rewards = torch.tensor(rewards, dtype=torch.float32, device="cuda")
-        advantages = GRPO.compute_advantages(rewards=rewards, metadatas=metadatas, config=config)
+        advantages = algorithm.compute_advantages(rewards=rewards, metadatas=metadatas)
 
         old_logprobs = old_logprobs[:, 1:]
         ref_logprobs = ref_logprobs[:, 1:]
-        masks: torch.Tensor = masks[:, 1:]
+        masks = masks[:, 1:]
         train_batch_size = input_ids.shape[0]
         microbatch_size = config.train.train_microbatch_size or train_batch_size
 
@@ -181,13 +182,12 @@ def main():
                 selected = logits.gather(dim=-1, index=labels.unsqueeze(-1)).squeeze(-1)
                 log_probs = selected - logits.logsumexp(dim=-1)
 
-                loss, microbatch_log = GRPO.loss(
+                loss, microbatch_log = algorithm.loss(
                     current_logprobs=log_probs,
                     old_logprobs=mb_old_logprobs,
                     ref_logprobs=mb_ref_logprobs,
                     masks=mb_masks,
                     advantages=mb_advantages,
-                    config=config,
                 )
 
                 (loss * microbatch_weight).backward()
@@ -217,7 +217,7 @@ def main():
         adapter_model.to("cpu")
         move_opt_to_device(optimizer, "cpu")
 
-        # Clean cuda cache
+        # Clear vars from VRAM
         del (
             input_ids,
             attention_mask,
