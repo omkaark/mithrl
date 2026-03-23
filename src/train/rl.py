@@ -10,7 +10,7 @@ from peft import LoraConfig, PeftModel, get_peft_model
 from transformers import AutoModelForCausalLM
 
 from ..utils import vllm
-from ..utils.algo_loader import load_algorithm
+from ..utils.loaders import load_algorithm
 from ..utils.config import MithrlConfig
 from ..utils.torch_utils import move_opt_to_device, pad_2d
 from .rollout import RolloutSample, run_rollouts
