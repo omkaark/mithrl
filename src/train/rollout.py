@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from ..utils import vllm
 from ..utils.client import LMClient
 from ..utils.config import MithrlConfig
-from ..utils.env_loader import load_environment_factory
+from ..utils.loaders import load_environment_factory
 from ..utils.torch_utils import get_masks_from_tokens
 from .env import Environment, EnvironmentFactory
 

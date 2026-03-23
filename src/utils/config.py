@@ -46,10 +46,15 @@ class RolloutConfig(BaseModel):
 
 
 class AlgoConfig(BaseModel):
-    n_groups: int = Field(default=4)
-    clip_eps: float = Field(default=0.2)
-    kl_coef: float = Field(default=0.04)
-    group_adv_eps: float = Field(default=1e-6)
+    factory: str = Field(default="src.algo.grpo:GRPO")
+    kwargs: dict[str, Any] = Field(
+        default_factory=lambda: {
+            "n_groups": 4,
+            "clip_eps": 0.2,
+            "kl_coef": 0.04,
+            "group_adv_eps": 1e-6,
+        }
+    )
 
 
 class EnvConfig(BaseModel):

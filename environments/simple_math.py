@@ -128,16 +128,16 @@ class SimpleMathEnvironment(Environment):
 
 class SimpleMathEnvironmentFactory(EnvironmentFactory):
     def __init__(self, config: MithrlConfig) -> None:
-        if config.rollout.n_rollouts % config.algo.n_groups != 0:
+        if config.rollout.n_rollouts % config.algo.kwargs["n_groups"] != 0:
             raise ValueError(
-                "rollout.n_rollouts must be divisible by algo.n_groups for grouped rollouts."
+                "rollout.n_rollouts must be divisible by algo.kwargs.n_groups for grouped rollouts."
             )
 
-        self._rollouts_per_group = config.rollout.n_rollouts // config.algo.n_groups
+        self._rollouts_per_group = config.rollout.n_rollouts // config.algo.kwargs["n_groups"]
         self._group_specs: dict[int, tuple[int, int, str, int]] = {}
         seed_rng = random.SystemRandom(42)
 
-        for group_id in range(config.algo.n_groups):
+        for group_id in range(config.algo.kwargs["n_groups"]):
             seed = seed_rng.randrange(0, 2**31)
             left, operator, right = self._sample_problem(seed)
             self._group_specs[group_id] = (seed, left, operator, right)
