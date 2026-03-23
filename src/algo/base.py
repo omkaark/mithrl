@@ -11,7 +11,11 @@ from ..utils.config import MithrlConfig
 class Algorithm(ABC):
     def __init__(self, config: MithrlConfig, **kwargs: Any) -> None:
         self.config = config
-        self.kwargs = kwargs
+        self.kwargs = self.validate_kwargs(kwargs)
+
+    @classmethod
+    def validate_kwargs(cls, kwargs: dict[str, Any]) -> Any:
+        return kwargs
 
     @abstractmethod
     def compute_advantages(

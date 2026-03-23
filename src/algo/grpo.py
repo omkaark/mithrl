@@ -1,12 +1,31 @@
+from __future__ import annotations
+
+from typing import Any
+
 import torch
+from pydantic import BaseModel, ConfigDict
 
 from .base import Algorithm
 from ..utils.config import MithrlConfig
 
+# Add a Config BaseModel to validate the kwargs for your algorithm
+class GRPOConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    n_groups: int
+    group_adv_eps: float
+    clip_eps: float
+    kl_coef: float
+
 
 class GRPO(Algorithm):
-    def __init__(self, config: MithrlConfig, **kwargs) -> None:
+    def __init__(self, config: MithrlConfig, **kwargs: Any) -> None:
         super().__init__(config=config, **kwargs)
+
+    # Validate algo kwargs and coerce into typed values
+    @classmethod
+    def validate_kwargs(cls, kwargs: dict[str, Any]) -> dict[str, Any]:
+        return GRPOConfig.model_validate(kwargs).model_dump()
 
     def compute_advantages(
         self,
@@ -23,9 +42,7 @@ class GRPO(Algorithm):
         for gid in group_ids.unique():
             m = group_ids == gid
             g = rewards[m]
-            advantages[m] = (g - g.mean()) / (
-                g.std(unbiased=False) + self.config.algo.kwargs["group_adv_eps"]
-            )
+            advantages[m] = (g - g.mean()) / (g.std(unbiased=False) + self.kwargs["group_adv_eps"])
 
         return advantages
 
@@ -40,8 +57,7 @@ class GRPO(Algorithm):
         mask_denom = masks.sum(dim=1).clamp_min(1.0)
 
         importance = torch.exp(current_logprobs - old_logprobs)
-        clip_eps = self.config.algo.kwargs["clip_eps"]
-        clipped = importance.clamp(1 - clip_eps, 1 + clip_eps)
+        clipped = importance.clamp(1 - self.kwargs["clip_eps"], 1 + self.kwargs["clip_eps"])
 
         adv = advantages[:, None]
         policy_loss = -torch.min(importance * adv, clipped * adv)
@@ -50,7 +66,7 @@ class GRPO(Algorithm):
 
         log_ratio = current_logprobs - ref_logprobs
         kl = (torch.exp(log_ratio) - log_ratio - 1) * masks
-        kl_loss = self.config.algo.kwargs["kl_coef"] * (kl.sum(dim=1) / mask_denom).mean()
+        kl_loss = self.kwargs["kl_coef"] * (kl.sum(dim=1) / mask_denom).mean()
 
         combined = policy_loss + kl_loss
         return combined, {
