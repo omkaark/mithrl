@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 
 from ..algo.base import Algorithm
-from ..train.env import EnvironmentFactory
+from ..rl.env import EnvironmentFactory
 from .config import MithrlConfig
 
 

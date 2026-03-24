@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 import re
 
-from src.train.env import Environment, EnvironmentFactory
+from src.rl.env import Environment, EnvironmentFactory
 from src.utils.config import MithrlConfig
 
 THINK_OPEN = "<think>"

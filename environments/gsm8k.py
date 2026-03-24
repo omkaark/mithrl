@@ -8,7 +8,7 @@ import threading
 from decimal import Decimal, InvalidOperation
 
 from datasets import load_dataset
-from src.train.env import Environment, EnvironmentFactory
+from src.rl.env import Environment, EnvironmentFactory
 from src.utils.config import MithrlConfig
 
 THINK_OPEN = "<think>"

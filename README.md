@@ -14,7 +14,7 @@ Current examples:
 
 Training entrypoint:
 ```bash
-python -m src.train.rl --config configs/simple_math.yaml
+python -m src.rl.train --config configs/simple_math.yaml
 ```
 
 ## Requirements
@@ -79,12 +79,12 @@ Why these flags matter here:
 
 Simple math example:
 ```bash
-python -m src.train.rl --config configs/simple_math.yaml
+python -m src.rl.train --config configs/simple_math.yaml
 ```
 
 GSM8K example:
 ```bash
-python -m src.train.rl --config configs/gsm8k.yaml
+python -m src.rl.train --config configs/gsm8k.yaml
 ```
 
 High-level loop:
