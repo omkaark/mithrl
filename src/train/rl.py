@@ -6,12 +6,12 @@ from collections import defaultdict
 import numpy as np
 import torch
 import wandb
-from peft import LoraConfig, PeftModel, get_peft_model
+from peft import LoraConfig, get_peft_model, load_peft_weights, set_peft_model_state_dict
 from transformers import AutoModelForCausalLM
 
 from ..utils import vllm
-from ..utils.loaders import load_algorithm
 from ..utils.config import MithrlConfig
+from ..utils.loaders import load_algorithm
 from ..utils.torch_utils import move_opt_to_device, pad_2d
 from .rollout import RolloutSample, run_rollouts
 
@@ -44,7 +44,6 @@ def main():
     # Setup
     init_model_kwargs = {
         "dtype": torch.bfloat16,
-        "device_map": "cuda",
     }
     if config.train.use_flash_attn:
         init_model_kwargs["attn_implementation"] = "flash_attention_2"
@@ -61,32 +60,26 @@ def main():
             "up_proj",
             "down_proj",
         ),
+        bias="none",
+        task_type="CAUSAL_LM",
     )
 
-    # Init adapter if not found
-    if not vllm.adapter_exists(config.train.adapter_path):
-        print("No policy adapter found on disk. Initializing default LoRA adapter at path.")
-        base_model = AutoModelForCausalLM.from_pretrained(
-            config.train.model_name, **init_model_kwargs
-        )
-        base_model.gradient_checkpointing_enable(
-            gradient_checkpointing_kwargs={"use_reentrant": False}
-        )
-        adapter_model = get_peft_model(base_model, lora_config)
-        adapter_model.save_pretrained(config.train.adapter_path)
+    base_model = AutoModelForCausalLM.from_pretrained(
+        config.train.model_name, **init_model_kwargs
+    )
+    base_model.config.use_cache = False
+    base_model.gradient_checkpointing_enable(
+        gradient_checkpointing_kwargs={"use_reentrant": False}
+    )
+    adapter_model = get_peft_model(base_model, lora_config)
+    if vllm.adapter_exists(config.train.adapter_path):
+        adapter_weights = load_peft_weights(config.train.adapter_path, device="cpu")
+        set_peft_model_state_dict(adapter_model, adapter_weights, adapter_name="default")
     else:
-        base_model = AutoModelForCausalLM.from_pretrained(
-            config.train.model_name, **init_model_kwargs
-        )
-        base_model.gradient_checkpointing_enable(
-            gradient_checkpointing_kwargs={"use_reentrant": False}
-        )
-        adapter_model = PeftModel.from_pretrained(
-            base_model,
-            config.train.adapter_path,
-            is_trainable=True,
-        )
+        print("No policy adapter found on disk. Initializing default LoRA adapter at path.")
+        adapter_model.save_pretrained(config.train.adapter_path)
     adapter_model.enable_input_require_grads()
+    adapter_model.train()
     optimizer = torch.optim.AdamW(
         (p for p in adapter_model.parameters() if p.requires_grad),
         lr=config.train.lr,

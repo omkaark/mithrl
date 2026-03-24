@@ -60,12 +60,16 @@ class GRPO(Algorithm):
         clipped = importance.clamp(1 - self.kwargs["clip_eps"], 1 + self.kwargs["clip_eps"])
 
         adv = advantages[:, None]
-        policy_loss = -torch.min(importance * adv, clipped * adv)
-        policy_loss = (policy_loss * masks).sum(dim=1) / mask_denom
-        policy_loss = policy_loss.mean()
+        chosen_ratio = torch.where(
+            adv >= 0,
+            torch.minimum(importance, clipped),
+            torch.maximum(importance, clipped),
+        )
+        policy_terms = chosen_ratio * adv
+        policy_loss = -((policy_terms * masks).sum(dim=1) / mask_denom).mean()
 
         log_ratio = current_logprobs - ref_logprobs
-        kl = (torch.exp(log_ratio) - log_ratio - 1) * masks
+        kl = (log_ratio.exp() - log_ratio - 1) * masks
         kl_loss = self.kwargs["kl_coef"] * (kl.sum(dim=1) / mask_denom).mean()
 
         combined = policy_loss + kl_loss

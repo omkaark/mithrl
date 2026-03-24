@@ -3,8 +3,8 @@ train:
   model_name: Qwen/Qwen2.5-3B
   adapter_path: ./artifacts/gsm8k-adapter-02
   wandb_project_name: mithrl
-  wandb_run_name: gsm8k-drgrpo
-  train_microbatch_size:  12
+  wandb_run_name: gsm8k-grpo
+  train_microbatch_size:  32
   n_steps: 1000
   n_iters: 4
   lr: 1e-5
@@ -14,14 +14,14 @@ env:
   kwargs: {}
 
 rollout:
-  n_rollouts: 48
-  max_parallel_rollouts: 16
+  n_rollouts: 64
+  max_parallel_rollouts: 32
   rollout_timeout: 600.0
 
 algo:
   factory: src.algo.grpo:GRPO
   kwargs:
-    n_groups: 6
+    n_groups: 8
     clip_eps: 0.2
     kl_coef: 0.04
     group_adv_eps: 1e-6

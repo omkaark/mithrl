@@ -4,7 +4,7 @@ train:
   adapter_path: ./artifacts/simple-math-adapter
   wandb_project_name: mithrl
   wandb_run_name: simple-math
-  train_microbatch_size:  16
+  train_microbatch_size:  48
   n_steps: 1000
   n_iters: 4
   lr: 1e-5
@@ -15,13 +15,13 @@ env:
 
 rollout:
   n_rollouts: 48
-  max_parallel_rollouts: 16
+  max_parallel_rollouts: 24
   rollout_timeout: 600.0
 
 algo:
   factory: src.algo.grpo:GRPO
   kwargs:
-    n_groups: 4
+    n_groups: 8
     clip_eps: 0.2
     kl_coef: 0.04
     group_adv_eps: 1e-6
